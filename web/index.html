@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Supla CD3S Builder</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <input id="importProfileInput" type="file" accept=".json,application/json" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">SC</span>
+          <div>
+            <p class="eyebrow">Firmware Builder</p>
+            <h1>Supla Gui-Generic</h1>
+          </div>
+        </div>
+
+        <section class="panel compact">
+          <p class="eyebrow">Target</p>
+          <div id="targetChip" class="target-chip">BK7231T / WB3S</div>
+          <p class="muted">Lokalny builder zintegrowany z firmware przez eksport profilu JSON.</p>
+          <p id="targetEnvHint" class="muted"></p>
+        </section>
+
+        <section class="panel compact">
+          <p class="eyebrow">Hardware</p>
+          <ul class="facts">
+            <li>120 MHz</li>
+            <li>2 MiB Flash</li>
+            <li>256 KiB RAM</li>
+            <li>OTA od 0x12A000</li>
+          </ul>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <section class="hero panel">
+          <div>
+            <p class="eyebrow">Config Preview</p>
+            <h2>Generator profilu urzadzenia SUPLA dla CB3S / WB3S</h2>
+            <p class="muted">Zbuduj profil z relay, roletami, przyciskami, krańcowkami, sensorami temperatury i I2C oraz lokalnymi powiazaniami miedzy elementami.</p>
+            <p class="muted">Eksportuj JSON jako <code>active_profile.json</code>, zapisz go do katalogu <code>profiles/</code> i buduj przez srodowisko <code>*_gui_generic</code>.</p>
+          </div>
+          <div class="toolbar">
+            <button id="importButton" class="secondary-button">Importuj JSON</button>
+            <button id="resetButton" class="secondary-button">Resetuj szablon</button>
+            <button id="exportButton" class="accent-button">Eksportuj profil JSON</button>
+            <button id="exportCodeButton" class="secondary-button">Eksportuj preview C++</button>
+          </div>
+        </section>
+
+        <section class="grid">
+          <form id="builderForm" class="panel form-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">General</p>
+                <h3>Metadane i siec</h3>
+              </div>
+            </div>
+            <div class="field-grid">
+              <label>
+                <span>Modul / target</span>
+                <select id="boardInput" name="board">
+                  <option value="wb3s">WB3S / BK7231T</option>
+                  <option value="cb3s">CB3S / BK7231N</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Nazwa urzadzenia</span>
+                <input id="deviceNameInput" name="deviceName" value="Supla WB3S Multi">
+              </label>
+
+              <label>
+                <span>Profil</span>
+                <select id="profileTypeInput" name="profileType">
+                  <option value="mixed">Mixed / generic</option>
+                  <option value="relay-node">Relay node</option>
+                  <option value="roller-node">Roller shutter node</option>
+                  <option value="sensor-node">Sensor node</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Status LED GPIO</span>
+                <select id="statusLedPinInput" name="statusLedPin"></select>
+              </label>
+
+              <label>
+                <span>Provisioning</span>
+                <select id="provisioningInput" name="provisioning">
+                  <option value="smartconfig">SmartConfig</option>
+                  <option value="softap">SoftAP</option>
+                  <option value="both">SmartConfig + SoftAP</option>
+                </select>
+              </label>
+
+              <label>
+                <span>I2C SDA</span>
+                <select id="i2cSdaInput" name="i2cSda"></select>
+              </label>
+
+              <label>
+                <span>I2C SCL</span>
+                <select id="i2cSclInput" name="i2cScl"></select>
+              </label>
+
+              <label>
+                <span>I2C clock [kHz]</span>
+                <input id="i2cFrequencyInput" name="i2cFrequency" type="number" min="50" max="400" step="50" value="100">
+              </label>
+
+              <label>
+                <span>OneWire default GPIO</span>
+                <select id="oneWirePinInput" name="oneWirePin"></select>
+              </label>
+            </div>
+
+            <label class="checkbox">
+              <input id="otaEnabledInput" type="checkbox" name="otaEnabled" checked>
+              <span>Wlacz aktualizacje OTA</span>
+            </label>
+
+            <label class="checkbox">
+              <input id="verboseLogsInput" type="checkbox" name="verboseLogs" checked>
+              <span>Wlacz logi na UART2 (P0)</span>
+            </label>
+
+            <label class="checkbox">
+              <input id="statusLedInvertedInput" type="checkbox" name="statusLedInverted" checked>
+              <span>Status LED aktywna stanem niskim</span>
+            </label>
+
+            <label class="checkbox">
+              <input id="i2cEnabledInput" type="checkbox" name="i2cEnabled" checked>
+              <span>Aktywna magistrala I2C</span>
+            </label>
+          </form>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Summary</p>
+                <h3>Bilans konfiguracji</h3>
+              </div>
+            </div>
+            <div id="builderSummary" class="summary-grid"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Board Rules</p>
+                <h3>Ostrzezenia sprzetowe</h3>
+              </div>
+            </div>
+            <ul id="warnings" class="warning-list"></ul>
+          </section>
+
+          <section class="panel flash-panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Flash Layout</p>
+                <h3 id="flashMapTitle">WB3S / Tuya BK7231T</h3>
+              </div>
+            </div>
+            <div id="flashMap" class="flash-map"></div>
+          </section>
+
+          <section class="panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Build</p>
+                <h3>Komendy gui-generic</h3>
+              </div>
+            </div>
+            <pre id="buildCommandOutput"></pre>
+          </section>
+
+          <section class="panel component-panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Relay</p>
+                <h3>Relay i LED stanu</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="relay">Dodaj relay</button>
+            </div>
+            <div id="relaysList" class="component-list"></div>
+          </section>
+
+          <section class="panel component-panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Roller Shutter</p>
+                <h3>Rolety, przyciski kierunkowe i krańcówki</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="shutter">Dodaj rolete</button>
+            </div>
+            <div id="shuttersList" class="component-list"></div>
+          </section>
+
+          <section class="panel component-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Buttons</p>
+                <h3>Przyciski</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="button">Dodaj przycisk</button>
+            </div>
+            <div id="buttonsList" class="component-list"></div>
+          </section>
+
+          <section class="panel component-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Binary Inputs</p>
+                <h3>Krańcówki i wejscia binarne</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="binary">Dodaj wejscie</button>
+            </div>
+            <div id="binaryInputsList" class="component-list"></div>
+          </section>
+
+          <section class="panel component-panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Sensors</p>
+                <h3>DS18B20, DHT11/22, BME280, BMP280, Si7021</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="sensor">Dodaj sensor</button>
+            </div>
+            <div id="sensorsList" class="component-list"></div>
+          </section>
+
+          <section class="panel component-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Action Trigger</p>
+                <h3>Publikacja akcji do SUPLA</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="actionTrigger">Dodaj AT</button>
+            </div>
+            <div id="actionTriggersList" class="component-list"></div>
+          </section>
+
+          <section class="panel component-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Direct Links</p>
+                <h3>Lokalne powiazania</h3>
+              </div>
+              <button type="button" class="secondary-button" data-add-kind="directLink">Dodaj link</button>
+            </div>
+            <div id="directLinksList" class="component-list"></div>
+          </section>
+
+          <section class="panel preview-panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Output</p>
+                <h3>Profil JSON</h3>
+              </div>
+            </div>
+            <pre id="configOutput"></pre>
+          </section>
+
+          <section class="panel preview-panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Firmware</p>
+                <h3>Podglad kodu C++</h3>
+              </div>
+            </div>
+            <pre id="firmwareOutput"></pre>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "metadata": {
+    "name": "Supla Builder Example",
+    "profileType": "mixed",
+    "board": "wb3s",
+    "soc": "BK7231T",
+    "statusLed": {
+      "pin": "P8",
+      "inverted": true
+    }
+  },
+  "network": {
+    "provisioning": "both",
+    "otaEnabled": true,
+    "verboseLogs": true,
+    "uart2": "P0"
+  },
+  "buses": {
+    "i2c": {
+      "enabled": true,
+      "sdaPin": "P6",
+      "sclPin": "P9",
+      "frequencyKHz": 100
+    },
+    "oneWire": {
+      "defaultPin": "P14"
+    }
+  },
+  "components": {
+    "relays": [
+      {
+        "id": "relay-1",
+        "name": "Relay 1",
+        "pin": "P24",
+        "highIsOn": true,
+        "defaultState": "off",
+        "led": {
+          "pin": "P26",
+          "inverted": true
+        }
+      }
+    ],
+    "shutters": [],
+    "buttons": [
+      {
+        "id": "button-1",
+        "name": "Button 1",
+        "pin": "P7",
+        "buttonType": "monostable",
+        "pullUp": true,
+        "invertLogic": true,
+        "configButton": true,
+        "holdMs": 5000,
+        "multiclickMs": 300
+      }
+    ],
+    "binaryInputs": [],
+    "sensors": [],
+    "actionTriggers": [
+      {
+        "id": "at-1",
+        "name": "AT Relay 1",
+        "buttonId": "button-1",
+        "relatedType": "relay",
+        "relatedId": "relay-1",
+        "alwaysUseOnClick1": false
+      }
+    ]
+  },
+  "links": {
+    "direct": [
+      {
+        "id": "link-1",
+        "name": "Button to relay",
+        "sourceType": "button",
+        "sourceId": "button-1",
+        "event": "ON_CLICK_1",
+        "targetType": "relay",
+        "targetId": "relay-1",
+        "action": "TOGGLE"
+      }
+    ]
+  },
+  "build": {
+    "requiredLibraries": [
+      "file://deps/supla-device"
+    ]
+  }
+}

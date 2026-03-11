@@ -1,0 +1,223 @@
+{
+  "version": 1,
+  "metadata": {
+    "name": "Supla CB3S Feature Demo",
+    "profileType": "mixed",
+    "board": "cb3s",
+    "soc": "BK7231N",
+    "statusLed": {
+      "pin": "P8",
+      "inverted": true
+    }
+  },
+  "network": {
+    "provisioning": "both",
+    "otaEnabled": true,
+    "verboseLogs": true,
+    "uart2": "P0"
+  },
+  "buses": {
+    "i2c": {
+      "enabled": true,
+      "sdaPin": "P6",
+      "sclPin": "P9",
+      "frequencyKHz": 100
+    },
+    "oneWire": {
+      "defaultPin": "P14"
+    }
+  },
+  "components": {
+    "relays": [
+      {
+        "id": "relay-1",
+        "name": "Relay 1",
+        "pin": "P24",
+        "highIsOn": true,
+        "defaultState": "off",
+        "led": {
+          "pin": "P26",
+          "inverted": true
+        }
+      }
+    ],
+    "shutters": [
+      {
+        "id": "shutter-1",
+        "name": "Roleta salon",
+        "upPin": "P10",
+        "downPin": "P11",
+        "highIsOn": true,
+        "openingTimeMs": 18000,
+        "closingTimeMs": 17500,
+        "upButtonId": "button-2",
+        "downButtonId": "button-3",
+        "openLimitId": "binary-1",
+        "closeLimitId": "binary-2"
+      }
+    ],
+    "buttons": [
+      {
+        "id": "button-1",
+        "name": "Button relay / cfg",
+        "pin": "P7",
+        "buttonType": "monostable",
+        "pullUp": true,
+        "invertLogic": true,
+        "configButton": true,
+        "holdMs": 5000,
+        "multiclickMs": 300
+      },
+      {
+        "id": "button-2",
+        "name": "Roleta gora",
+        "pin": "P14",
+        "buttonType": "monostable",
+        "pullUp": true,
+        "invertLogic": true,
+        "configButton": false,
+        "holdMs": 1000,
+        "multiclickMs": 300
+      },
+      {
+        "id": "button-3",
+        "name": "Roleta dol",
+        "pin": "P26",
+        "buttonType": "monostable",
+        "pullUp": true,
+        "invertLogic": true,
+        "configButton": false,
+        "holdMs": 1000,
+        "multiclickMs": 300
+      }
+    ],
+    "binaryInputs": [
+      {
+        "id": "binary-1",
+        "name": "Krańcówka otwarte",
+        "pin": "P20",
+        "role": "limit-open",
+        "pullUp": true,
+        "invertLogic": true,
+        "filteringTimeMs": 50
+      },
+      {
+        "id": "binary-2",
+        "name": "Krańcówka zamkniete",
+        "pin": "P21",
+        "role": "limit-close",
+        "pullUp": true,
+        "invertLogic": true,
+        "filteringTimeMs": 50
+      }
+    ],
+    "sensors": [
+      {
+        "id": "sensor-1",
+        "name": "DS18B20 boiler",
+        "type": "ds18b20",
+        "pin": "P14",
+        "address": null,
+        "altitudeMeters": 0,
+        "refreshMs": 10000
+      },
+      {
+        "id": "sensor-2",
+        "name": "DHT11 utility",
+        "type": "dht11",
+        "pin": "P24",
+        "address": null,
+        "altitudeMeters": 0,
+        "refreshMs": 10000
+      },
+      {
+        "id": "sensor-3",
+        "name": "DHT22 attic",
+        "type": "dht22",
+        "pin": "P26",
+        "address": null,
+        "altitudeMeters": 0,
+        "refreshMs": 10000
+      },
+      {
+        "id": "sensor-4",
+        "name": "BME280 living room",
+        "type": "bme280",
+        "pin": null,
+        "address": "0x76",
+        "altitudeMeters": 120,
+        "refreshMs": 10000
+      },
+      {
+        "id": "sensor-5",
+        "name": "BMP280 barometer",
+        "type": "bmp280",
+        "pin": null,
+        "address": "0x77",
+        "altitudeMeters": 120,
+        "refreshMs": 10000
+      },
+      {
+        "id": "sensor-6",
+        "name": "Si7021 humidity",
+        "type": "si7021",
+        "pin": null,
+        "address": null,
+        "altitudeMeters": 0,
+        "refreshMs": 10000
+      }
+    ],
+    "actionTriggers": [
+      {
+        "id": "at-1",
+        "name": "AT Relay 1",
+        "buttonId": "button-1",
+        "relatedType": "relay",
+        "relatedId": "relay-1",
+        "alwaysUseOnClick1": false
+      },
+      {
+        "id": "at-2",
+        "name": "AT Roleta gora",
+        "buttonId": "button-2",
+        "relatedType": "shutter",
+        "relatedId": "shutter-1",
+        "alwaysUseOnClick1": false
+      }
+    ]
+  },
+  "links": {
+    "direct": [
+      {
+        "id": "link-1",
+        "name": "Button relay toggle",
+        "sourceType": "button",
+        "sourceId": "button-1",
+        "event": "ON_CLICK_1",
+        "targetType": "relay",
+        "targetId": "relay-1",
+        "action": "TOGGLE"
+      },
+      {
+        "id": "link-2",
+        "name": "Roleta open",
+        "sourceType": "button",
+        "sourceId": "button-2",
+        "event": "ON_PRESS",
+        "targetType": "shutter",
+        "targetId": "shutter-1",
+        "action": "OPEN_OR_STOP"
+      },
+      {
+        "id": "link-3",
+        "name": "Roleta close",
+        "sourceType": "button",
+        "sourceId": "button-3",
+        "event": "ON_PRESS",
+        "targetType": "shutter",
+        "targetId": "shutter-1",
+        "action": "CLOSE_OR_STOP"
+      }
+    ]
+  }
+}

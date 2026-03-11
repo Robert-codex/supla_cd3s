@@ -1,0 +1,8 @@
+.pio/
+.cache/
+deps/
+firmware/build/
+src/supla_secrets.h
+include/supla_secrets.h
+include/generated_profile_data.h
+profiles/active_profile.json

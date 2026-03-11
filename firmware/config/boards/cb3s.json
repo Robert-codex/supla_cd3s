@@ -1,0 +1,47 @@
+{
+  "board": "cb3s",
+  "soc": "BK7231N",
+  "clockMHz": 120,
+  "flashBytes": 2097152,
+  "ramBytes": 262144,
+  "voltage": {
+    "min": 3.0,
+    "max": 3.6
+  },
+  "pins": {
+    "safe": ["P6", "P7", "P8", "P9", "P10", "P11", "P14", "P24", "P26"],
+    "warning": ["P20", "P21", "P22", "P23", "P0"],
+    "uart": {
+      "rx": "P10",
+      "tx": "P11"
+    }
+  },
+  "supportedComponents": {
+    "relays": true,
+    "relayStateLed": true,
+    "rollerShutters": true,
+    "buttons": true,
+    "limitSwitches": true,
+    "binaryInputs": true,
+    "actionTriggers": true,
+    "directLinks": true,
+    "sensors": [
+      "DS18B20",
+      "DHT11",
+      "DHT22",
+      "BME280",
+      "BMP280",
+      "Si7021"
+    ]
+  },
+  "flashLayout": [
+    { "name": "bootloader", "start": "0x000000", "length": "0x011000" },
+    { "name": "app", "start": "0x011000", "length": "0x119000" },
+    { "name": "ota", "start": "0x12A000", "length": "0x0A6000" },
+    { "name": "calibration", "start": "0x1D0000", "length": "0x001000" },
+    { "name": "network", "start": "0x1D1000", "length": "0x001000" },
+    { "name": "tlv", "start": "0x1D2000", "length": "0x001000" },
+    { "name": "kvs", "start": "0x1D3000", "length": "0x008000" },
+    { "name": "userdata", "start": "0x1DB000", "length": "0x025000" }
+  ]
+}
