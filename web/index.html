@@ -199,7 +199,7 @@
               </label>
 
               <label>
-                <span>Wersja firmware</span>
+                <span>Wersja builda</span>
                 <input id="builderVersionInput" value="" placeholder="np. 26.03.25">
               </label>
 
@@ -255,8 +255,19 @@
             <div id="builderHistory" class="history-list"></div>
           </section>
 
+          <section class="panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Status</p>
+                <h3>Uproszczony podglad</h3>
+              </div>
+            </div>
+            <div id="builderSummary" class="summary-grid"></div>
+            <ul id="warnings" class="warning-list"></ul>
+          </section>
+
           <details class="advanced-panel span-2">
-            <summary>Zaawansowane ustawienia</summary>
+            <summary>Zaawansowane</summary>
             <div class="advanced-body">
               <section class="panel span-2">
                 <div class="panel-head">
@@ -288,17 +299,6 @@
 
                 <div id="monitorStatusCard" class="build-status-card"></div>
                 <pre id="monitorLogOutput"></pre>
-              </section>
-
-              <section class="panel span-2">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Konfiguracja</p>
-                    <h3>Bilans i diagnostyka</h3>
-                  </div>
-                </div>
-                <div id="builderSummary" class="summary-grid"></div>
-                <ul id="warnings" class="warning-list"></ul>
               </section>
 
               <section class="panel flash-panel span-2">
@@ -339,83 +339,6 @@
                   </div>
                 </div>
                 <pre id="firmwareOutput"></pre>
-              </section>
-
-              <section class="panel component-panel span-2">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Relay</p>
-                    <h3>Relay i LED stanu</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="relay">Dodaj relay</button>
-                </div>
-                <div id="relaysList" class="component-list"></div>
-              </section>
-
-              <section class="panel component-panel span-2">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Roller Shutter</p>
-                    <h3>Rolety, przyciski kierunkowe i krańcówki</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="shutter">Dodaj rolete</button>
-                </div>
-                <div id="shuttersList" class="component-list"></div>
-              </section>
-
-              <section class="panel component-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Buttons</p>
-                    <h3>Przyciski</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="button">Dodaj przycisk</button>
-                </div>
-                <div id="buttonsList" class="component-list"></div>
-              </section>
-
-              <section class="panel component-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Binary Inputs</p>
-                    <h3>Krańcówki i wejscia binarne</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="binary">Dodaj wejscie</button>
-                </div>
-                <div id="binaryInputsList" class="component-list"></div>
-              </section>
-
-              <section class="panel component-panel span-2">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Sensors</p>
-                    <h3>DS18B20, DHT11/22, BME280, BMP280, Si7021</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="sensor">Dodaj sensor</button>
-                </div>
-                <div id="sensorsList" class="component-list"></div>
-              </section>
-
-              <section class="panel component-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Action Trigger</p>
-                    <h3>Publikacja akcji do SUPLA</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="actionTrigger">Dodaj AT</button>
-                </div>
-                <div id="actionTriggersList" class="component-list"></div>
-              </section>
-
-              <section class="panel component-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Direct Links</p>
-                    <h3>Lokalne powiazania</h3>
-                  </div>
-                  <button type="button" class="secondary-button" data-add-kind="directLink">Dodaj link</button>
-                </div>
-                <div id="directLinksList" class="component-list"></div>
               </section>
             </div>
           </details>
