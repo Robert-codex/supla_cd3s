@@ -40,9 +40,8 @@
         <section class="hero panel">
           <div>
             <p class="eyebrow">Config Preview</p>
-            <h2>Generator profilu urzadzenia SUPLA dla CB3S / WB3S</h2>
-            <p class="muted">Zbuduj profil z relay, roletami, przyciskami, krańcowkami, sensorami temperatury i I2C oraz lokalnymi powiazaniami miedzy elementami.</p>
-            <p class="muted">Mozesz dalej eksportowac JSON jako <code>active_profile.json</code>, ale lokalny builder potrafi tez zapisac profil i uruchomic build bezposrednio z tego ekranu.</p>
+            <h2>Prosty lokalny builder SUPLA dla CB3S / WB3S</h2>
+            <p class="muted">Najpierw ustaw profil i build, potem jednym kliknieciem zbuduj, wgraj albo uruchom monitor UART. Zaawansowane komponenty sa schowane niżej.</p>
           </div>
           <div class="toolbar">
             <button id="importButton" class="secondary-button">Importuj JSON</button>
@@ -200,6 +199,11 @@
               </label>
 
               <label>
+                <span>Wersja firmware</span>
+                <input id="builderVersionInput" value="" placeholder="np. 26.03.25">
+              </label>
+
+              <label>
                 <span>Nazwa artefaktu</span>
                 <input id="builderCustomNameInput" value="" placeholder="opcjonalnie, np. atlo-wb3s-kuchnia">
               </label>
@@ -251,134 +255,170 @@
             <div id="builderHistory" class="history-list"></div>
           </section>
 
-          <section class="panel span-2">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">UART Monitor</p>
-                <h3>Podglad logow urzadzenia</h3>
-              </div>
-              <div class="toolbar">
-                <button id="startMonitorButton" type="button" class="secondary-button">Start monitora</button>
-                <button id="stopMonitorButton" type="button" class="secondary-button">Stop monitora</button>
-              </div>
+          <details class="advanced-panel span-2">
+            <summary>Zaawansowane ustawienia</summary>
+            <div class="advanced-body">
+              <section class="panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">UART Monitor</p>
+                    <h3>Podglad logow urzadzenia</h3>
+                  </div>
+                  <div class="toolbar">
+                    <button id="startMonitorButton" type="button" class="secondary-button">Start monitora</button>
+                    <button id="stopMonitorButton" type="button" class="secondary-button">Stop monitora</button>
+                  </div>
+                </div>
+
+                <div class="field-grid">
+                  <label>
+                    <span>Port monitora</span>
+                    <select id="monitorPortInput"></select>
+                  </label>
+
+                  <label>
+                    <span>Baud rate</span>
+                    <select id="monitorBaudInput">
+                      <option value="115200" selected>115200</option>
+                      <option value="74880">74880</option>
+                      <option value="9600">9600</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="monitorStatusCard" class="build-status-card"></div>
+                <pre id="monitorLogOutput"></pre>
+              </section>
+
+              <section class="panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Konfiguracja</p>
+                    <h3>Bilans i diagnostyka</h3>
+                  </div>
+                </div>
+                <div id="builderSummary" class="summary-grid"></div>
+                <ul id="warnings" class="warning-list"></ul>
+              </section>
+
+              <section class="panel flash-panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Flash Layout</p>
+                    <h3 id="flashMapTitle">WB3S / Tuya BK7231T</h3>
+                  </div>
+                </div>
+                <div id="flashMap" class="flash-map"></div>
+              </section>
+
+              <section class="panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Build</p>
+                    <h3>Komendy i podglad</h3>
+                  </div>
+                </div>
+                <pre id="buildCommandOutput"></pre>
+              </section>
+
+              <section class="panel preview-panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Output</p>
+                    <h3>Profil JSON</h3>
+                  </div>
+                </div>
+                <pre id="configOutput"></pre>
+              </section>
+
+              <section class="panel preview-panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Firmware</p>
+                    <h3>Podglad kodu C++</h3>
+                  </div>
+                </div>
+                <pre id="firmwareOutput"></pre>
+              </section>
+
+              <section class="panel component-panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Relay</p>
+                    <h3>Relay i LED stanu</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="relay">Dodaj relay</button>
+                </div>
+                <div id="relaysList" class="component-list"></div>
+              </section>
+
+              <section class="panel component-panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Roller Shutter</p>
+                    <h3>Rolety, przyciski kierunkowe i krańcówki</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="shutter">Dodaj rolete</button>
+                </div>
+                <div id="shuttersList" class="component-list"></div>
+              </section>
+
+              <section class="panel component-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Buttons</p>
+                    <h3>Przyciski</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="button">Dodaj przycisk</button>
+                </div>
+                <div id="buttonsList" class="component-list"></div>
+              </section>
+
+              <section class="panel component-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Binary Inputs</p>
+                    <h3>Krańcówki i wejscia binarne</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="binary">Dodaj wejscie</button>
+                </div>
+                <div id="binaryInputsList" class="component-list"></div>
+              </section>
+
+              <section class="panel component-panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Sensors</p>
+                    <h3>DS18B20, DHT11/22, BME280, BMP280, Si7021</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="sensor">Dodaj sensor</button>
+                </div>
+                <div id="sensorsList" class="component-list"></div>
+              </section>
+
+              <section class="panel component-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Action Trigger</p>
+                    <h3>Publikacja akcji do SUPLA</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="actionTrigger">Dodaj AT</button>
+                </div>
+                <div id="actionTriggersList" class="component-list"></div>
+              </section>
+
+              <section class="panel component-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Direct Links</p>
+                    <h3>Lokalne powiazania</h3>
+                  </div>
+                  <button type="button" class="secondary-button" data-add-kind="directLink">Dodaj link</button>
+                </div>
+                <div id="directLinksList" class="component-list"></div>
+              </section>
             </div>
-
-            <div class="field-grid">
-              <label>
-                <span>Port monitora</span>
-                <select id="monitorPortInput"></select>
-              </label>
-
-              <label>
-                <span>Baud rate</span>
-                <select id="monitorBaudInput">
-                  <option value="115200" selected>115200</option>
-                  <option value="74880">74880</option>
-                  <option value="9600">9600</option>
-                </select>
-              </label>
-            </div>
-
-            <div id="monitorStatusCard" class="build-status-card"></div>
-            <pre id="monitorLogOutput"></pre>
-          </section>
-
-          <section class="panel component-panel span-2">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Relay</p>
-                <h3>Relay i LED stanu</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="relay">Dodaj relay</button>
-            </div>
-            <div id="relaysList" class="component-list"></div>
-          </section>
-
-          <section class="panel component-panel span-2">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Roller Shutter</p>
-                <h3>Rolety, przyciski kierunkowe i krańcówki</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="shutter">Dodaj rolete</button>
-            </div>
-            <div id="shuttersList" class="component-list"></div>
-          </section>
-
-          <section class="panel component-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Buttons</p>
-                <h3>Przyciski</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="button">Dodaj przycisk</button>
-            </div>
-            <div id="buttonsList" class="component-list"></div>
-          </section>
-
-          <section class="panel component-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Binary Inputs</p>
-                <h3>Krańcówki i wejscia binarne</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="binary">Dodaj wejscie</button>
-            </div>
-            <div id="binaryInputsList" class="component-list"></div>
-          </section>
-
-          <section class="panel component-panel span-2">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Sensors</p>
-                <h3>DS18B20, DHT11/22, BME280, BMP280, Si7021</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="sensor">Dodaj sensor</button>
-            </div>
-            <div id="sensorsList" class="component-list"></div>
-          </section>
-
-          <section class="panel component-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Action Trigger</p>
-                <h3>Publikacja akcji do SUPLA</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="actionTrigger">Dodaj AT</button>
-            </div>
-            <div id="actionTriggersList" class="component-list"></div>
-          </section>
-
-          <section class="panel component-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Direct Links</p>
-                <h3>Lokalne powiazania</h3>
-              </div>
-              <button type="button" class="secondary-button" data-add-kind="directLink">Dodaj link</button>
-            </div>
-            <div id="directLinksList" class="component-list"></div>
-          </section>
-
-          <section class="panel preview-panel span-2">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Output</p>
-                <h3>Profil JSON</h3>
-              </div>
-            </div>
-            <pre id="configOutput"></pre>
-          </section>
-
-          <section class="panel preview-panel span-2">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Firmware</p>
-                <h3>Podglad kodu C++</h3>
-              </div>
-            </div>
-            <pre id="firmwareOutput"></pre>
-          </section>
+          </details>
         </section>
       </main>
     </div>

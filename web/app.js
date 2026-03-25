@@ -65,6 +65,7 @@ const targetChip = document.getElementById("targetChip");
 const targetEnvHint = document.getElementById("targetEnvHint");
 const builderEnvInput = document.getElementById("builderEnvInput");
 const builderCustomNameInput = document.getElementById("builderCustomNameInput");
+const builderVersionInput = document.getElementById("builderVersionInput");
 const forceRebuildInput = document.getElementById("forceRebuildInput");
 const refreshBuilderButton = document.getElementById("refreshBuilderButton");
 const triggerBuildButton = document.getElementById("triggerBuildButton");
@@ -101,6 +102,7 @@ const storageKeys = {
   monitorBaud: "supla_cd3s_monitor_baud",
   monitorAfterUpload: "supla_cd3s_monitor_after_upload",
   builderEnv: "supla_cd3s_builder_env",
+  builderVersion: "supla_cd3s_builder_version",
   historyArtifactFilter: "supla_cd3s_history_artifact_filter"
 };
 
@@ -1032,9 +1034,9 @@ function renderBuilderEnvOptions(config) {
       ? builderEnvInput.value
       : envs.includes(storedEnv)
         ? storedEnv
-      : envs.includes(preferredEnv)
-        ? preferredEnv
-        : (config?.default_env || "");
+        : envs.includes(preferredEnv)
+          ? preferredEnv
+          : (config?.default_env || "");
 
   builderEnvInput.innerHTML = envs
     .map((env) => `<option value="${escapeAttribute(env)}"${env === selectedEnv ? " selected" : ""}>${escapeHtml(env)}</option>`)
@@ -1086,6 +1088,7 @@ function renderBuilderStatus(payload) {
     `<div class="status-meta">`,
     `<span><strong>Hash:</strong> ${escapeHtml(payload.hash || "-")}</span>`,
     `<span><strong>Env:</strong> ${escapeHtml(payload.env || "-")}</span>`,
+    `<span><strong>Wersja:</strong> ${escapeHtml(payload.build_version || "-")}</span>`,
     `<span><strong>Profil:</strong> ${escapeHtml(payload.profile_name || "-")}</span>`,
     `<span><strong>Aktualizacja:</strong> ${escapeHtml(formatDateTime(payload.updated_at_iso))}</span>`,
     payload.preferred_artifact?.name
@@ -1169,7 +1172,7 @@ function renderBuilderHistory(items) {
         <div class="history-item">
           <div>
             <strong>${escapeHtml(item.profile_name || item.custom_name || item.hash)}</strong>
-            <p class="card-meta">${escapeHtml(item.env)} | ${escapeHtml(item.status)} | ${escapeHtml(formatDateTime(item.updated_at_iso))}${item.preferred_artifact?.role ? ` | ${escapeHtml(item.preferred_artifact.role)}` : ""}</p>
+            <p class="card-meta">${escapeHtml(item.env)} | ${escapeHtml(item.status)} | ${escapeHtml(item.build_version || "-")} | ${escapeHtml(formatDateTime(item.updated_at_iso))}${item.preferred_artifact?.role ? ` | ${escapeHtml(item.preferred_artifact.role)}` : ""}</p>
           </div>
           <button type="button" data-build-hash="${escapeAttribute(item.hash)}">Podglad</button>
         </div>
@@ -1268,6 +1271,7 @@ async function triggerBuild() {
   const env = builderEnvInput.value || getBoardProfile(state.metadata.board).generatedEnv;
   const payload = {
     env,
+    build_version: builderVersionInput.value.trim(),
     custom_name: builderCustomNameInput.value.trim(),
     force_rebuild: forceRebuildInput.checked,
     profile_payload: profilePayload
@@ -1277,6 +1281,7 @@ async function triggerBuild() {
     status: "queued",
     hash: "obliczanie...",
     env,
+    build_version: builderVersionInput.value.trim(),
     profile_name: profilePayload.metadata.name,
     artifacts: [],
     log_tail: ""
@@ -2077,6 +2082,12 @@ function render() {
   if (!historyArtifactFilterInput.value) {
     historyArtifactFilterInput.value = safeLocalStorageGet(storageKeys.historyArtifactFilter, "all");
   }
+  if (!builderVersionInput.value) {
+    builderVersionInput.value = safeLocalStorageGet(
+      storageKeys.builderVersion,
+      new Date().toISOString().slice(2, 10).replaceAll("-", ".")
+    );
+  }
   if (!monitorBaudInput.value) {
     monitorBaudInput.value = safeLocalStorageGet(storageKeys.monitorBaud, "115200");
   }
@@ -2161,6 +2172,9 @@ function handleInput(event) {
   switch (target.id) {
     case "builderEnvInput":
       safeLocalStorageSet(storageKeys.builderEnv, target.value);
+      break;
+    case "builderVersionInput":
+      safeLocalStorageSet(storageKeys.builderVersion, target.value);
       break;
     case "uploadPortInput":
       safeLocalStorageSet(storageKeys.uploadPort, target.value);

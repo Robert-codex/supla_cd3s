@@ -207,6 +207,7 @@ def list_build_artifacts(build_hash: str) -> list[dict[str, str]]:
 class BuildRequest:
     env: str
     profile_payload: dict[str, Any]
+    build_version: str = ""
     custom_name: str = ""
     force_rebuild: bool = False
     source_sig: str = ""
@@ -217,6 +218,7 @@ class BuildRequest:
         request = cls(
             env=str(payload.get("env", "")).strip(),
             profile_payload=payload.get("profile_payload", {}) if isinstance(payload.get("profile_payload", {}), dict) else {},
+            build_version=str(payload.get("build_version", "")).strip(),
             custom_name=str(payload.get("custom_name", "")).strip(),
             force_rebuild=bool(payload.get("force_rebuild", False)),
             source_sig=source_signature(),
@@ -229,6 +231,7 @@ class BuildRequest:
             {
                 "env": self.env,
                 "profile_payload": self.profile_payload,
+                "build_version": self.build_version,
                 "custom_name": self.custom_name,
                 "source_sig": self.source_sig,
             },
@@ -247,8 +250,9 @@ class BuildMetadata:
     updated_at: float
     env: str
     custom_name: str
-    source_signature: str
-    profile_name: str
+    build_version: str = ""
+    source_signature: str = ""
+    profile_name: str = ""
     build_system: str = "supla_cd3s"
     artifacts: list[dict[str, str]] = field(default_factory=list)
     preferred_artifact: dict[str, str] = field(default_factory=dict)
@@ -333,6 +337,7 @@ class BuildManager:
             updated_at=now,
             env=request.env,
             custom_name=request.custom_name,
+            build_version=request.build_version,
             source_signature=request.source_sig,
             profile_name=str(request.profile_payload.get("metadata", {}).get("name", "")),
             platformio_cmd=self.platformio_cmd or "",
