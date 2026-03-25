@@ -63,6 +63,46 @@ const resetButton = document.getElementById("resetButton");
 const importProfileInput = document.getElementById("importProfileInput");
 const targetChip = document.getElementById("targetChip");
 const targetEnvHint = document.getElementById("targetEnvHint");
+const builderEnvInput = document.getElementById("builderEnvInput");
+const builderCustomNameInput = document.getElementById("builderCustomNameInput");
+const forceRebuildInput = document.getElementById("forceRebuildInput");
+const refreshBuilderButton = document.getElementById("refreshBuilderButton");
+const triggerBuildButton = document.getElementById("triggerBuildButton");
+const triggerBuildUploadButton = document.getElementById("triggerBuildUploadButton");
+const builderRuntimeHint = document.getElementById("builderRuntimeHint");
+const builderStatusCard = document.getElementById("builderStatusCard");
+const builderArtifacts = document.getElementById("builderArtifacts");
+const builderLogOutput = document.getElementById("builderLogOutput");
+const builderUploadLogOutput = document.getElementById("builderUploadLogOutput");
+const builderHistory = document.getElementById("builderHistory");
+const uploadPortInput = document.getElementById("uploadPortInput");
+const refreshPortsButton = document.getElementById("refreshPortsButton");
+const triggerUploadButton = document.getElementById("triggerUploadButton");
+const monitorAfterUploadInput = document.getElementById("monitorAfterUploadInput");
+const monitorPortInput = document.getElementById("monitorPortInput");
+const monitorBaudInput = document.getElementById("monitorBaudInput");
+const startMonitorButton = document.getElementById("startMonitorButton");
+const stopMonitorButton = document.getElementById("stopMonitorButton");
+const monitorStatusCard = document.getElementById("monitorStatusCard");
+const monitorLogOutput = document.getElementById("monitorLogOutput");
+const historyArtifactFilterInput = document.getElementById("historyArtifactFilterInput");
+
+const builderState = {
+  config: null,
+  currentBuildHash: "",
+  pollTimer: null,
+  monitorTimer: null,
+  historyItems: []
+};
+
+const storageKeys = {
+  uploadPort: "supla_cd3s_upload_port",
+  monitorPort: "supla_cd3s_monitor_port",
+  monitorBaud: "supla_cd3s_monitor_baud",
+  monitorAfterUpload: "supla_cd3s_monitor_after_upload",
+  builderEnv: "supla_cd3s_builder_env",
+  historyArtifactFilter: "supla_cd3s_history_artifact_filter"
+};
 
 const collections = {
   relay: "relays",
@@ -949,6 +989,387 @@ function renderBuildCommands(config) {
   ].join("\n");
 }
 
+function escapeAttribute(value) {
+  return String(value ?? "").replaceAll("\"", "&quot;");
+}
+
+function safeLocalStorageGet(key, fallback = "") {
+  try {
+    return window.localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // Ignore unavailable storage.
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  try {
+    return new Date(value).toLocaleString("pl-PL");
+  } catch {
+    return String(value);
+  }
+}
+
+function renderBuilderEnvOptions(config) {
+  if (!builderEnvInput) {
+    return;
+  }
+  const envs = config?.generated_envs || [];
+  const storedEnv = safeLocalStorageGet(storageKeys.builderEnv, "");
+  const preferredEnv = getBoardProfile(state.metadata.board).generatedEnv;
+  const selectedEnv =
+    envs.includes(builderEnvInput.value)
+      ? builderEnvInput.value
+      : envs.includes(storedEnv)
+        ? storedEnv
+      : envs.includes(preferredEnv)
+        ? preferredEnv
+        : (config?.default_env || "");
+
+  builderEnvInput.innerHTML = envs
+    .map((env) => `<option value="${escapeAttribute(env)}"${env === selectedEnv ? " selected" : ""}>${escapeHtml(env)}</option>`)
+    .join("");
+}
+
+function renderSerialPortOptions(config) {
+  const ports = config?.serial_ports || [];
+  const previous = uploadPortInput.value || safeLocalStorageGet(storageKeys.uploadPort, "");
+  const selected =
+    ports.some((port) => port.path === previous)
+      ? previous
+      : (ports[0]?.path || "");
+
+  uploadPortInput.innerHTML = ports.length
+    ? ports
+        .map(
+          (port) =>
+            `<option value="${escapeAttribute(port.path)}"${port.path === selected ? " selected" : ""}>${escapeHtml(port.label || port.path)}</option>`
+        )
+        .join("")
+    : `<option value="">Brak wykrytych portow</option>`;
+  const previousMonitor = monitorPortInput.value || safeLocalStorageGet(storageKeys.monitorPort, "");
+  const selectedMonitor =
+    ports.some((port) => port.path === previousMonitor)
+      ? previousMonitor
+      : (selected || ports[0]?.path || "");
+  monitorPortInput.innerHTML = ports.length
+    ? ports
+        .map(
+          (port) =>
+            `<option value="${escapeAttribute(port.path)}"${port.path === selectedMonitor ? " selected" : ""}>${escapeHtml(port.label || port.path)}</option>`
+        )
+        .join("")
+    : `<option value="">Brak wykrytych portow</option>`;
+}
+
+function renderBuilderStatus(payload) {
+  if (!payload) {
+    builderStatusCard.innerHTML = `<p class="empty-state">Builder nie ma jeszcze zadnego aktywnego builda.</p>`;
+    builderArtifacts.innerHTML = "";
+    builderLogOutput.textContent = "";
+    return;
+  }
+
+  const statusClass = escapeHtml(payload.status || "unknown");
+  builderStatusCard.innerHTML = [
+    `<div><span class="status-pill ${statusClass}">${escapeHtml(payload.status || "unknown")}</span></div>`,
+    `<div class="status-meta">`,
+    `<span><strong>Hash:</strong> ${escapeHtml(payload.hash || "-")}</span>`,
+    `<span><strong>Env:</strong> ${escapeHtml(payload.env || "-")}</span>`,
+    `<span><strong>Profil:</strong> ${escapeHtml(payload.profile_name || "-")}</span>`,
+    `<span><strong>Aktualizacja:</strong> ${escapeHtml(formatDateTime(payload.updated_at_iso))}</span>`,
+    payload.preferred_artifact?.name
+      ? `<span><strong>Flash:</strong> ${escapeHtml(payload.preferred_artifact.name)}</span>`
+      : "",
+    `</div>`,
+    payload.error ? `<p class="card-meta">${escapeHtml(payload.error)}</p>` : "",
+    payload.upload_status
+      ? `<p class="card-meta">Upload: ${escapeHtml(payload.upload_status)}${payload.upload_port ? ` | port ${escapeHtml(payload.upload_port)}` : ""}${payload.upload_error ? ` | ${escapeHtml(payload.upload_error)}` : ""}</p>`
+      : ""
+  ].join("");
+
+  const artifacts = payload.artifacts || [];
+  if (artifacts.length === 0) {
+    builderArtifacts.innerHTML = `<p class="empty-state">Brak artefaktow dla tego builda.</p>`;
+  } else {
+    builderArtifacts.innerHTML = artifacts
+      .map(
+        (artifact) => `
+          <div class="artifact-item">
+            <div>
+              <strong>${escapeHtml(artifact.name)}</strong>
+              <p class="card-meta">${escapeHtml(artifact.path || artifact.url || "")}</p>
+            </div>
+            <a class="secondary-button" href="${escapeAttribute(artifact.url)}" download>Pobierz</a>
+          </div>
+        `
+      )
+      .join("");
+  }
+
+  builderLogOutput.textContent = payload.log_tail || "";
+  builderUploadLogOutput.textContent = payload.upload_log_tail || "";
+}
+
+function renderMonitorStatus(payload) {
+  if (!payload) {
+    monitorStatusCard.innerHTML = `<p class="empty-state">Monitor UART nie jest aktywny.</p>`;
+    monitorLogOutput.textContent = "";
+    return;
+  }
+  const statusClass = escapeHtml(payload.status || "stopped");
+  monitorStatusCard.innerHTML = [
+    `<div><span class="status-pill ${statusClass === "running" ? "building" : statusClass}">${escapeHtml(payload.status || "stopped")}</span></div>`,
+    `<div class="status-meta">`,
+    `<span><strong>Port:</strong> ${escapeHtml(payload.port || "-")}</span>`,
+    `<span><strong>Baud:</strong> ${escapeHtml(payload.baud || "-")}</span>`,
+    `<span><strong>Aktualizacja:</strong> ${escapeHtml(formatDateTime(payload.updated_at_iso))}</span>`,
+    `</div>`,
+    payload.error ? `<p class="card-meta">${escapeHtml(payload.error)}</p>` : ""
+  ].join("");
+  monitorLogOutput.textContent = payload.log_tail || "";
+}
+
+function renderBuilderHistory(items) {
+  if (!items || items.length === 0) {
+    builderHistory.innerHTML = `<p class="empty-state">Historia buildow jest jeszcze pusta.</p>`;
+    return;
+  }
+
+  const artifactFilter = historyArtifactFilterInput.value || safeLocalStorageGet(storageKeys.historyArtifactFilter, "all");
+  const filteredItems = items.filter((item) => {
+    if (artifactFilter === "all") {
+      return true;
+    }
+    const role = String(item.preferred_artifact?.role || "");
+    if (artifactFilter === "debug") {
+      return role === "elf" || role === "map" || role === "binary";
+    }
+    return role === artifactFilter;
+  });
+
+  if (filteredItems.length === 0) {
+    builderHistory.innerHTML = `<p class="empty-state">Brak buildow pasujacych do wybranego filtra.</p>`;
+    return;
+  }
+
+  builderHistory.innerHTML = filteredItems
+    .map(
+      (item) => `
+        <div class="history-item">
+          <div>
+            <strong>${escapeHtml(item.profile_name || item.custom_name || item.hash)}</strong>
+            <p class="card-meta">${escapeHtml(item.env)} | ${escapeHtml(item.status)} | ${escapeHtml(formatDateTime(item.updated_at_iso))}${item.preferred_artifact?.role ? ` | ${escapeHtml(item.preferred_artifact.role)}` : ""}</p>
+          </div>
+          <button type="button" data-build-hash="${escapeAttribute(item.hash)}">Podglad</button>
+        </div>
+      `
+    )
+    .join("");
+}
+
+async function fetchBuilderConfig() {
+  const response = await fetch("/api/config");
+  if (!response.ok) {
+    throw new Error("Nie udalo sie pobrac konfiguracji buildera.");
+  }
+  builderState.config = await response.json();
+  renderBuilderEnvOptions(builderState.config);
+  renderSerialPortOptions(builderState.config);
+  const platformioInfo = builderState.config.platformio_cmd
+    ? `PlatformIO: ${builderState.config.platformio_cmd}`
+    : "PlatformIO nie zostalo znalezione w systemie.";
+  builderRuntimeHint.textContent =
+    `${platformioInfo} Builder nasluchuje na osobnym API i kompiluje tylko srodowiska *_gui_generic.`;
+}
+
+async function fetchBuildHistory() {
+  const response = await fetch("/api/history");
+  if (!response.ok) {
+    throw new Error("Nie udalo sie pobrac historii buildow.");
+  }
+  const payload = await response.json();
+  builderState.historyItems = payload.items || [];
+  renderBuilderHistory(builderState.historyItems);
+}
+
+async function fetchSerialPorts() {
+  const response = await fetch("/api/serial-ports");
+  if (!response.ok) {
+    throw new Error("Nie udalo sie pobrac portow szeregowych.");
+  }
+  const payload = await response.json();
+  if (!builderState.config) {
+    builderState.config = {};
+  }
+  builderState.config.serial_ports = payload.items || [];
+  renderSerialPortOptions(builderState.config);
+}
+
+async function fetchMonitorStatus() {
+  const response = await fetch("/api/monitor");
+  if (!response.ok) {
+    throw new Error("Nie udalo sie pobrac statusu monitora.");
+  }
+  const payload = await response.json();
+  renderMonitorStatus(payload);
+  if (payload.status === "running") {
+    builderState.monitorTimer = window.setTimeout(() => {
+      fetchMonitorStatus().catch((error) => {
+        monitorStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+      });
+    }, 2000);
+  } else {
+    builderState.monitorTimer = null;
+  }
+}
+
+async function fetchBuildDetails(buildHash) {
+  const response = await fetch(`/api/builds/${encodeURIComponent(buildHash)}`);
+  if (!response.ok) {
+    throw new Error("Nie udalo sie pobrac szczegolow builda.");
+  }
+  return response.json();
+}
+
+async function pollBuild(buildHash) {
+  const payload = await fetchBuildDetails(buildHash);
+  builderState.currentBuildHash = buildHash;
+  renderBuilderStatus(payload);
+  await fetchBuildHistory();
+  if (
+    payload.status === "queued" ||
+    payload.status === "building" ||
+    payload.upload_status === "queued" ||
+    payload.upload_status === "uploading"
+  ) {
+    builderState.pollTimer = window.setTimeout(() => {
+      pollBuild(buildHash).catch((error) => {
+        builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+      });
+    }, 2500);
+  } else {
+    builderState.pollTimer = null;
+  }
+}
+
+async function triggerBuild() {
+  const profilePayload = buildConfig();
+  const env = builderEnvInput.value || getBoardProfile(state.metadata.board).generatedEnv;
+  const payload = {
+    env,
+    custom_name: builderCustomNameInput.value.trim(),
+    force_rebuild: forceRebuildInput.checked,
+    profile_payload: profilePayload
+  };
+
+  renderBuilderStatus({
+    status: "queued",
+    hash: "obliczanie...",
+    env,
+    profile_name: profilePayload.metadata.name,
+    artifacts: [],
+    log_tail: ""
+  });
+
+  const response = await fetch("/api/build", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  if (!response.ok && response.status !== 202) {
+    throw new Error(result.error || "Build request failed.");
+  }
+
+  if (builderState.pollTimer) {
+    window.clearTimeout(builderState.pollTimer);
+    builderState.pollTimer = null;
+  }
+  await pollBuild(result.hash);
+}
+
+async function triggerUpload() {
+  if (!builderState.currentBuildHash) {
+    throw new Error("Najpierw wybierz lub zbuduj firmware.");
+  }
+  const uploadPort = uploadPortInput.value;
+  if (!uploadPort) {
+    throw new Error("Brak wybranego portu UART.");
+  }
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      build_hash: builderState.currentBuildHash,
+      upload_port: uploadPort
+    })
+  });
+  const result = await response.json();
+  if (!response.ok && response.status !== 202) {
+    throw new Error(result.error || "Upload request failed.");
+  }
+  await pollBuild(builderState.currentBuildHash);
+  if (monitorAfterUploadInput.checked) {
+    await startMonitor();
+  }
+}
+
+async function triggerBuildAndUpload() {
+  await triggerBuild();
+  await triggerUpload();
+}
+
+async function startMonitor() {
+  const port = monitorPortInput.value;
+  if (!port) {
+    throw new Error("Brak wybranego portu monitora.");
+  }
+  const baud = Number(monitorBaudInput.value || 115200);
+  const response = await fetch("/api/monitor/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ port, baud })
+  });
+  const payload = await response.json();
+  if (!response.ok && response.status !== 202) {
+    throw new Error(payload.error || "Nie udalo sie uruchomic monitora.");
+  }
+  if (builderState.monitorTimer) {
+    window.clearTimeout(builderState.monitorTimer);
+    builderState.monitorTimer = null;
+  }
+  await fetchMonitorStatus();
+}
+
+async function stopMonitor() {
+  const response = await fetch("/api/monitor/stop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}"
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || "Nie udalo sie zatrzymac monitora.");
+  }
+  if (builderState.monitorTimer) {
+    window.clearTimeout(builderState.monitorTimer);
+    builderState.monitorTimer = null;
+  }
+  renderMonitorStatus(payload);
+}
+
 function estimateSensorChannels(sensor) {
   if (sensor.type === "bme280" || sensor.type === "bmp280") {
     return 2;
@@ -1650,6 +2071,16 @@ function render() {
   renderSummary(config);
   renderFlashMap(config);
   renderBuildCommands(config);
+  if (builderState.config) {
+    renderBuilderEnvOptions(builderState.config);
+  }
+  if (!historyArtifactFilterInput.value) {
+    historyArtifactFilterInput.value = safeLocalStorageGet(storageKeys.historyArtifactFilter, "all");
+  }
+  if (!monitorBaudInput.value) {
+    monitorBaudInput.value = safeLocalStorageGet(storageKeys.monitorBaud, "115200");
+  }
+  monitorAfterUploadInput.checked = safeLocalStorageGet(storageKeys.monitorAfterUpload, "false") === "true";
   configOutput.textContent = JSON.stringify(config, null, 2);
   firmwareOutput.textContent = buildFirmwarePreview(config);
 }
@@ -1727,6 +2158,30 @@ function handleInput(event) {
     return;
   }
 
+  switch (target.id) {
+    case "builderEnvInput":
+      safeLocalStorageSet(storageKeys.builderEnv, target.value);
+      break;
+    case "uploadPortInput":
+      safeLocalStorageSet(storageKeys.uploadPort, target.value);
+      break;
+    case "monitorPortInput":
+      safeLocalStorageSet(storageKeys.monitorPort, target.value);
+      break;
+    case "monitorBaudInput":
+      safeLocalStorageSet(storageKeys.monitorBaud, target.value);
+      break;
+    case "monitorAfterUploadInput":
+      safeLocalStorageSet(storageKeys.monitorAfterUpload, target.checked ? "true" : "false");
+      break;
+    case "historyArtifactFilterInput":
+      safeLocalStorageSet(storageKeys.historyArtifactFilter, target.value);
+      renderBuilderHistory(builderState.historyItems);
+      break;
+    default:
+      break;
+  }
+
   updateStaticState(target);
   render();
 }
@@ -1781,6 +2236,20 @@ function handleClick(event) {
   if (target.hasAttribute("data-remove-kind")) {
     removeItem(target.getAttribute("data-remove-kind"), target.getAttribute("data-remove-id"));
     render();
+    return;
+  }
+
+  if (target.hasAttribute("data-build-hash")) {
+    const buildHash = target.getAttribute("data-build-hash");
+    if (buildHash) {
+      if (builderState.pollTimer) {
+        window.clearTimeout(builderState.pollTimer);
+        builderState.pollTimer = null;
+      }
+      pollBuild(buildHash).catch((error) => {
+        builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+      });
+    }
   }
 }
 
@@ -1804,6 +2273,49 @@ resetButton.addEventListener("click", () => {
   resetToTemplate();
 });
 
+refreshBuilderButton.addEventListener("click", () => {
+  Promise.all([fetchBuilderConfig(), fetchBuildHistory()])
+    .catch((error) => {
+      builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+    });
+});
+
+refreshPortsButton.addEventListener("click", () => {
+  fetchSerialPorts().catch((error) => {
+    builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  });
+});
+
+triggerBuildButton.addEventListener("click", () => {
+  triggerBuild().catch((error) => {
+    builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  });
+});
+
+triggerBuildUploadButton.addEventListener("click", () => {
+  triggerBuildAndUpload().catch((error) => {
+    builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  });
+});
+
+triggerUploadButton.addEventListener("click", () => {
+  triggerUpload().catch((error) => {
+    builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  });
+});
+
+startMonitorButton.addEventListener("click", () => {
+  startMonitor().catch((error) => {
+    monitorStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  });
+});
+
+stopMonitorButton.addEventListener("click", () => {
+  stopMonitor().catch((error) => {
+    monitorStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  });
+});
+
 importProfileInput.addEventListener("change", (event) => {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) {
@@ -1812,5 +2324,19 @@ importProfileInput.addEventListener("change", (event) => {
   importProfileFile(input.files?.[0] || null);
 });
 
+async function bootstrapBuilder() {
+  try {
+    await fetchBuilderConfig();
+    await fetchBuildHistory();
+    await fetchMonitorStatus();
+  } catch (error) {
+    builderStatusCard.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+    builderArtifacts.innerHTML = "";
+    builderLogOutput.textContent = "";
+    builderUploadLogOutput.textContent = "";
+  }
+}
+
 syncCounters();
 render();
+bootstrapBuilder();

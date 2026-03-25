@@ -1,0 +1,15 @@
+[Unit]
+Description=cloudflared tunnel for Supla CD3S builder
+After=network-online.target supla_cd3s_builder.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=langnet
+Group=langnet
+ExecStart=/usr/bin/cloudflared tunnel --config /home/langnet/Projekty/Supla_CD3S/scripts/cloudflared-cd3s-builder.yml run supla-builder
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

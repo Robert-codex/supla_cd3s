@@ -42,7 +42,7 @@
             <p class="eyebrow">Config Preview</p>
             <h2>Generator profilu urzadzenia SUPLA dla CB3S / WB3S</h2>
             <p class="muted">Zbuduj profil z relay, roletami, przyciskami, krańcowkami, sensorami temperatury i I2C oraz lokalnymi powiazaniami miedzy elementami.</p>
-            <p class="muted">Eksportuj JSON jako <code>active_profile.json</code>, zapisz go do katalogu <code>profiles/</code> i buduj przez srodowisko <code>*_gui_generic</code>.</p>
+            <p class="muted">Mozesz dalej eksportowac JSON jako <code>active_profile.json</code>, ale lokalny builder potrafi tez zapisac profil i uruchomic build bezposrednio z tego ekranu.</p>
           </div>
           <div class="toolbar">
             <button id="importButton" class="secondary-button">Importuj JSON</button>
@@ -174,10 +174,113 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Build</p>
-                <h3>Komendy gui-generic</h3>
+                <h3>Komendy i lokalny builder</h3>
               </div>
             </div>
             <pre id="buildCommandOutput"></pre>
+          </section>
+
+          <section class="panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Local Build</p>
+                <h3>Kompilacja w tym repo</h3>
+              </div>
+              <div class="toolbar">
+                <button id="refreshBuilderButton" type="button" class="secondary-button">Odswiez status buildera</button>
+                <button id="triggerBuildButton" type="button" class="accent-button">Buduj teraz</button>
+                <button id="triggerBuildUploadButton" type="button" class="accent-button">Build + Upload</button>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                <span>Srodowisko builda</span>
+                <select id="builderEnvInput"></select>
+              </label>
+
+              <label>
+                <span>Nazwa artefaktu</span>
+                <input id="builderCustomNameInput" value="" placeholder="opcjonalnie, np. atlo-wb3s-kuchnia">
+              </label>
+
+              <label>
+                <span>Port UART do uploadu</span>
+                <select id="uploadPortInput"></select>
+              </label>
+
+              <div class="inline-actions">
+                <button id="refreshPortsButton" type="button" class="secondary-button">Odswiez porty</button>
+                <button id="triggerUploadButton" type="button" class="secondary-button">Upload przez UART</button>
+              </div>
+            </div>
+
+            <label class="checkbox">
+              <input id="forceRebuildInput" type="checkbox">
+              <span>Wymus rebuild nawet gdy taki sam profil byl juz zbudowany</span>
+            </label>
+
+            <label class="checkbox">
+              <input id="monitorAfterUploadInput" type="checkbox">
+              <span>Po udanym uploadzie automatycznie uruchom monitor UART</span>
+            </label>
+
+            <p id="builderRuntimeHint" class="muted"></p>
+            <div id="builderStatusCard" class="build-status-card"></div>
+            <div id="builderArtifacts" class="artifact-list"></div>
+            <pre id="builderLogOutput"></pre>
+            <pre id="builderUploadLogOutput"></pre>
+          </section>
+
+          <section class="panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">History</p>
+                <h3>Ostatnie buildy</h3>
+              </div>
+              <label class="history-filter">
+                <span>Filtr artefaktow</span>
+                <select id="historyArtifactFilterInput">
+                  <option value="all">Wszystkie</option>
+                  <option value="flash">Flash</option>
+                  <option value="ota">OTA</option>
+                  <option value="debug">Debug</option>
+                </select>
+              </label>
+            </div>
+            <div id="builderHistory" class="history-list"></div>
+          </section>
+
+          <section class="panel span-2">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">UART Monitor</p>
+                <h3>Podglad logow urzadzenia</h3>
+              </div>
+              <div class="toolbar">
+                <button id="startMonitorButton" type="button" class="secondary-button">Start monitora</button>
+                <button id="stopMonitorButton" type="button" class="secondary-button">Stop monitora</button>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                <span>Port monitora</span>
+                <select id="monitorPortInput"></select>
+              </label>
+
+              <label>
+                <span>Baud rate</span>
+                <select id="monitorBaudInput">
+                  <option value="115200" selected>115200</option>
+                  <option value="74880">74880</option>
+                  <option value="9600">9600</option>
+                </select>
+              </label>
+            </div>
+
+            <div id="monitorStatusCard" class="build-status-card"></div>
+            <pre id="monitorLogOutput"></pre>
           </section>
 
           <section class="panel component-panel span-2">

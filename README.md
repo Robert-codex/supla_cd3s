@@ -4,6 +4,8 @@ Starter projektu firmware Supla dla modulow `CB3S` / `WB3S` z ukladem `BK7231N` 
 
 Builder jest teraz zintegrowany z firmware lokalnie: eksportowany profil JSON moze byc bezposrednio zamieniony na kompilowany rejestr komponentow przez srodowiska `cb3s_gui_generic` i `wb3s_gui_generic`.
 
+Repo ma teraz tez osobny lokalny builder HTTP dla `Supla_CD3S`, niezalezny od architektury `GUI-Generic/ESP`. Serwuje on UI z katalogu `web/`, przyjmuje profil JSON z formularza i uruchamia build `PlatformIO` bezposrednio w tym repo.
+
 Instalacja na Linuxie: [linux-install.md](/home/langnet/Projekty/Supla_CD3S/docs/linux-install.md)
 
 ## Co jest w repo
@@ -138,6 +140,133 @@ Praca wyglada teraz tak:
 4. Budujesz przez `pio run`.
 
 Builder WWW nadal moze sluzyc do planowania GPIO i zaleznosci, ale realny firmware skladasz recznie w `src/user_components.cpp`.
+
+## Lokalny builder HTTP
+
+Mozesz uruchomic osobny builder dla tego repo:
+
+```sh
+./scripts/run_local_builder.sh
+```
+
+Domyslny adres:
+
+```text
+http://127.0.0.1:8182/
+```
+
+Builder:
+
+- serwuje istniejacy frontend z `web/`
+- wysyla aktualny profil bezposrednio do lokalnego API
+- zapisuje go jako `profiles/active_profile.json` w workspace builda
+- kompiluje tylko srodowiska `*_gui_generic`
+- zapisuje artefakty i logi w `local_builder/data/`
+
+Jesli w systemie nie ma `platformio` / `pio`, panel builda pokaze odpowiedni komunikat diagnostyczny.
+
+Dostep po LAN jest mozliwy. Wystarczy wystawic serwer na wszystkich interfejsach:
+
+```sh
+LOCAL_BUILDER_HOST=0.0.0.0 LOCAL_BUILDER_PORT=8182 ./scripts/run_local_builder.sh
+```
+
+Wtedy builder bedzie dostepny z innych urzadzen w sieci pod adresem:
+
+```text
+http://IP_TWOJEGO_HOSTA:8182/
+```
+
+Pamietaj, ze upload UART i monitor portu szeregowego nadal wykonuje host, na ktorym fizycznie podlaczony jest modul.
+
+## Uklad bez konfliktu z `builder.regnal.eu`
+
+Najrozsadniejszy uklad na tej samej maszynie to:
+
+- zostawic obecny builder SUPLA/ESP pod `builder.regnal.eu`
+- ten builder `Supla_CD3S` uruchamiac na osobnym porcie `127.0.0.1:8182`
+- wystawic go przez osobny hostname, np. `cd3s-builder.regnal.eu`
+
+Finalny publiczny adres tego buildera:
+
+```text
+https://cd3s-builder.regnal.eu
+```
+
+Gotowe pliki w repo:
+
+- usluga buildera: [supla_cd3s_builder.service](/home/langnet/Projekty/Supla_CD3S/scripts/supla_cd3s_builder.service)
+- przykladowy config tunelu: [cloudflared-cd3s-builder.yml.example](/home/langnet/Projekty/Supla_CD3S/scripts/cloudflared-cd3s-builder.yml.example)
+- przykladowa usluga `cloudflared`: [cloudflared-cd3s-builder.service.example](/home/langnet/Projekty/Supla_CD3S/scripts/cloudflared-cd3s-builder.service.example)
+
+Docelowy podzial:
+
+- `builder.regnal.eu` -> stary builder ESP/SUPLA
+- `cd3s-builder.regnal.eu` -> ten builder `Supla_CD3S`
+
+## Wdrozenie na tej maszynie
+
+Adres LAN hosta w tej chwili:
+
+```text
+192.168.2.119
+```
+
+Lokalny start bez tunelu:
+
+```sh
+LOCAL_BUILDER_HOST=127.0.0.1 LOCAL_BUILDER_PORT=8182 ./scripts/run_local_builder.sh
+```
+
+Lokalny test po LAN:
+
+```sh
+LOCAL_BUILDER_HOST=0.0.0.0 LOCAL_BUILDER_PORT=8182 ./scripts/run_local_builder.sh
+```
+
+Wtedy builder bedzie dostepny pod:
+
+```text
+http://192.168.2.119:8182/
+```
+
+Docelowe wdrozenie bez konfliktu z obecnym tunelem:
+
+1. Skopiuj usluge buildera:
+
+```sh
+sudo cp scripts/supla_cd3s_builder.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now supla_cd3s_builder.service
+```
+
+2. Skopiuj przyklad configu tunelu i uzupelnij:
+
+```sh
+cp scripts/cloudflared-cd3s-builder.yml.example scripts/cloudflared-cd3s-builder.yml
+```
+
+Ustaw w nim prawidlowy `credentials-file` i zostaw hostname:
+
+```text
+cd3s-builder.regnal.eu
+```
+
+3. Skopiuj przyklad uslugi `cloudflared` i popraw sciezke configu:
+
+```sh
+sudo cp scripts/cloudflared-cd3s-builder.service.example /etc/systemd/system/cloudflared-cd3s-builder.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now cloudflared-cd3s-builder.service
+```
+
+4. W Cloudflare DNS/Zero Trust dodaj rekord lub route dla:
+
+```text
+cd3s-builder.regnal.eu
+```
+
+Ten builder nie powinien uzywac tego samego hostname co `builder.regnal.eu`.
 
 ## Integracja z gui-generic style builder
 

@@ -1,0 +1,7 @@
+tunnel: supla-builder
+credentials-file: /home/langnet/.cloudflared/YOUR-TUNNEL-ID.json
+
+ingress:
+  - hostname: cd3s-builder.regnal.eu
+    service: http://127.0.0.1:8182
+  - service: http_status:404
